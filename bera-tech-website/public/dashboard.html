@@ -1,1 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | Bera Tech</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Welcome, <span id="username"></span>!</h2>
+        <button id="logoutBtn">Logout</button>
 
+        <h3>Your Projects</h3>
+        <ul id="projectList"></ul>
+
+        <h3>Add New Project</h3>
+        <form id="addProjectForm">
+            <input type="text" id="projectName" placeholder="Project Name" required>
+            <textarea id="projectDesc" placeholder="Project Description" required></textarea>
+            <button type="submit">Add Project</button>
+        </form>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
