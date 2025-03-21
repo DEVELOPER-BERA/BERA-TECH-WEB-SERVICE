@@ -1,3 +1,6 @@
+const projectRoutes = require("./routes/projectRoutes");
+app.use("/api/projects", projectRoutes);
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
