@@ -1,20 +1,21 @@
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 require("dotenv").config();
 
-const authenticateToken = (req, res, next) => {
-  const token = req.header("Authorization");
-
-  if (!token) {
-    return res.status(403).json({ message: "Access denied. No token provided." });
-  }
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: "Invalid token" });
-    }
-    req.user = user;
-    next();
-  });
+// ✅ Generate JWT Token
+const generateToken = (user) => {
+    return jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
 };
 
-module.exports = authenticateToken;
+// ✅ Hash Password
+const hashPassword = async (password) => {
+    const salt = await bcrypt.genSalt(10);
+    return await bcrypt.hash(password, salt);
+};
+
+// ✅ Verify Password
+const comparePassword = async (password, hashedPassword) => {
+    return await bcrypt.compare(password, hashedPassword);
+};
+
+module.exports = { generateToken, hashPassword, comparePassword };
