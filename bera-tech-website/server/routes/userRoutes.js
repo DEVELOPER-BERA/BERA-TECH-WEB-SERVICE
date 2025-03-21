@@ -1,65 +1,57 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { generateToken, hashPassword, comparePassword } = require("../auth");
 const db = require("../db");
-const authenticateToken = require("../auth"); // Import auth middleware
-require("dotenv").config();
 
 const router = express.Router();
 
-// ✅ User Registration (Sign Up)
+// ✅ Register User
 router.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
+    const { name, email, password } = req.body;
 
-  // Check if user already exists
-  db.query("SELECT * FROM users WHERE email = ?", [email], async (err, result) => {
-    if (result.length > 0) {
-      return res.status(400).json({ message: "User already exists" });
+    try {
+        const hashedPassword = await hashPassword(password);
+        await db.query("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", [name, email, hashedPassword]);
+
+        res.json({ message: "User registered successfully!" });
+    } catch (error) {
+        res.status(500).json({ message: "Registration failed" });
     }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Insert user into database
-    db.query(
-      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-      [name, email, hashedPassword],
-      (err, result) => {
-        if (err) return res.status(500).json({ message: "Error registering user" });
-        res.json({ message: "User registered successfully" });
-      }
-    );
-  });
 });
 
-// ✅ User Login
-router.post("/login", (req, res) => {
-  const { email, password } = req.body;
+// ✅ Login User
+router.post("/login", async (req, res) => {
+    const { email, password } = req.body;
 
-  // Check if user exists
-  db.query("SELECT * FROM users WHERE email = ?", [email], async (err, result) => {
-    if (result.length === 0) {
-      return res.status(401).json({ message: "User not found" });
+    try {
+        const [user] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+        if (!user) return res.status(401).json({ message: "Invalid credentials" });
+
+        const isValidPassword = await comparePassword(password, user.password);
+        if (!isValidPassword) return res.status(401).json({ message: "Invalid credentials" });
+
+        const token = generateToken(user);
+        res.json({ message: "Login successful", token, user });
+    } catch (error) {
+        res.status(500).json({ message: "Login failed" });
     }
-
-    const user = result[0];
-
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Incorrect password" });
-    }
-
-    // Generate JWT Token
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
-    res.json({ message: "Login successful", token });
-  });
 });
 
-// ✅ Protected Dashboard Route (Only Authenticated Users Can Access)
-router.get("/dashboard", authenticateToken, (req, res) => {
-  res.json({ message: "Welcome to the dashboard!", user: req.user });
+// ✅ Middleware to Protect Routes
+const verifyToken = (req, res, next) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) return res.status(403).json({ message: "Invalid token" });
+        req.user = decoded;
+        next();
+    });
+};
+
+// ✅ Protected Route (Dashboard Access)
+router.get("/dashboard", verifyToken, (req, res) => {
+    res.json({ message: `Welcome, User ${req.user.email}!` });
 });
 
 module.exports = router;
